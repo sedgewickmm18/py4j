@@ -90,6 +90,8 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
 
 	public static final String DEFAULT_IPv6_ADDRESS = "::1";
 
+	public static final String DEFAULT_IPv6_INADDR_ANY = "::";
+
 	public static final int DEFAULT_PORT = 25333;
 
 	public static final int DEFAULT_PYTHON_PORT = 25334;
@@ -821,7 +823,8 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
 		int port = DEFAULT_PORT;
 		boolean dieOnBrokenPipe = false;
 		boolean enableAuth = false;
-		String usage = "usage: [--die-on-broken-pipe] [--enable-auth] [port]";
+		boolean bindToAll = false;
+		String usage = "usage: [--die-on-broken-pipe] [--enable-auth] [--bind-to-all] [port]";
 
 		for (int i = 0; i < args.length; i++) {
 			String opt = args[i];
@@ -829,6 +832,8 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
 				dieOnBrokenPipe = true;
 			} else if (opt.equals("--enable-auth")) {
 				enableAuth = true;
+			} else if (opt.equals("--bind-to-all")) {
+				bindToAll = true;
 			} else {
 				try {
 					port = Integer.parseInt(opt);
@@ -847,11 +852,23 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
 			authToken = Base64.encodeToString(token, false);
 		}
 
-		GatewayServer gatewayServer = new GatewayServerBuilder().javaPort(port).authToken(authToken).build();
+		GatewayServerBuilder gatewayServerBuilder = new GatewayServerBuilder().javaPort(port).authToken(authToken);
+		if (bindToAll) {
+			InetAddress address;
+			try {
+				address = InetAddress.getByName(DEFAULT_IPv6_INADDR_ANY);
+			} catch (UnknownHostException e) {
+				throw new Py4JNetworkException(e);
+			}
+			gatewayServerBuilder.javaAddress(address);
+		}
+
+		GatewayServer gatewayServer = gatewayServerBuilder.build();
+
 		gatewayServer.start();
 		/* Print out the listening port so that clients can discover it. */
 		int listening_port = gatewayServer.getListeningPort();
-		System.out.println("" + listening_port);
+		System.out.println("" + listening_port + " on address " + gatewayServer.getAddress());
 
 		if (authToken != null) {
 			System.out.println(authToken);
