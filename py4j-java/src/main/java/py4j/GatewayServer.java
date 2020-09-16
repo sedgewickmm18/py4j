@@ -830,10 +830,13 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
 		boolean dieOnBrokenPipe = false;
 		boolean enableAuth = false;
 		boolean nextArgIsToken = false;
+                boolean debug = false;
+                boolean verbose = false;
 		String authToken = null;
 		boolean bindToAll = false;
 
-		String usage = "usage: [--die-on-broken-pipe] [--enable-auth] [token] [--bind-to-all] [port]";
+		String usage = "usage: [--die-on-broken-pipe] [--debug] [--verbose] " + 
+                        "[--enable-auth] [token] [--bind-to-all] [port]";
 
 		for (int i = 0; i < args.length; i++) {
 			String opt = args[i];
@@ -851,6 +854,10 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
 			if (opt.equals("--die-on-broken-pipe")) {
 				dieOnBrokenPipe = true;
                                 nextArgIsToken = false;
+			} else if (opt.equals("--debug")) {
+				GatewayServer.turnAllLoggingOn();
+			} else if (opt.equals("--verbose")) {
+				GatewayServer.turnLoggingOn();
 			} else if (opt.equals("--bind-to-all")) {
 				bindToAll = true;
                                 nextArgIsToken = false;
@@ -861,7 +868,6 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
 
                         // argument is no valid option, proceed
                         } else if (nextArgIsToken && argi == -1) {
-                                System.out.println("Here");
                                 try {
                                         authToken = String.valueOf(opt);
                                         System.out.println(authToken);
