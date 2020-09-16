@@ -50,6 +50,13 @@ import java.util.logging.Logger;
 
 import javax.net.ServerSocketFactory;
 
+// parse json property file
+import org.json.JSONObject;
+import org.json.JSONException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.NoSuchFileException;
+
 // JWT support
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -827,18 +834,41 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
 	 */
 	public static void main(String[] args) {
 		int port = DEFAULT_PORT;
+		boolean hasJSONOptionFile = false;
 		boolean dieOnBrokenPipe = false;
 		boolean enableAuth = false;
 		boolean nextArgIsToken = false;
                 boolean debug = false;
                 boolean verbose = false;
-		String authToken = null;
 		boolean bindToAll = false;
+		String authToken = null;
 
 		String usage = "usage: [--die-on-broken-pipe] [--debug] [--verbose] " + 
                         "[--enable-auth] [token] [--bind-to-all] [port]";
 
-		for (int i = 0; i < args.length; i++) {
+                // check whether we have the name of an option file instead of parameters
+                if (args.length > 0) {
+                        try {
+                                String jsonString = new String(Files.readAllBytes(Paths.get(args[0])));
+
+                                JSONObject obj = new JSONObject(jsonString);
+
+                                hasJSONOptionFile = true;
+                                try { dieOnBrokenPipe = obj.getBoolean("dieOnBrokenPipe"); } catch (JSONException e) { }
+                                try { authToken = obj.getString("enableAuth"); } catch (JSONException e) { }
+                                try { bindToAll = obj.getBoolean("bindToAll"); } catch (JSONException e) { }
+                                try { debug = obj.getBoolean("debug"); } catch (JSONException e) { }
+                                try { verbose = obj.getBoolean("verbose"); } catch (JSONException e) { }
+                        }
+                        catch (NoSuchFileException e) {
+                                System.out.println("No such File " + e);
+                        }
+                        catch (Exception e) {
+                                System.out.println("Irgend so ein Murks " + e);
+                        }
+                }
+
+                if (!hasJSONOptionFile) for (int i = 0; i < args.length; i++) {
 			String opt = args[i];
 
                         // Test for potential port argument first
@@ -850,6 +880,7 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
                                 argi = -1;   // catch all for no valid integer
                         }
 
+                        System.out.println("Arg[" + i + "]: " + opt);
                         // check for options first
 			if (opt.equals("--die-on-broken-pipe")) {
 				dieOnBrokenPipe = true;
