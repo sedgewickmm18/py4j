@@ -50,6 +50,12 @@ import java.util.logging.Logger;
 
 import javax.net.ServerSocketFactory;
 
+// JWT support
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+import java.security.Key;
+
 import py4j.commands.Command;
 
 /**
@@ -823,33 +829,64 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
 		int port = DEFAULT_PORT;
 		boolean dieOnBrokenPipe = false;
 		boolean enableAuth = false;
+		boolean nextArgIsToken = false;
+		String authToken = null;
 		boolean bindToAll = false;
-		String usage = "usage: [--die-on-broken-pipe] [--enable-auth] [--bind-to-all] [port]";
+
+		String usage = "usage: [--die-on-broken-pipe] [--enable-auth] [token] [--bind-to-all] [port]";
 
 		for (int i = 0; i < args.length; i++) {
 			String opt = args[i];
+
+                        // Test for potential port argument first
+                        Integer argi;
+                        try {
+                                argi = Integer.parseInt(opt);
+                        }
+                        catch (NumberFormatException ne) {
+                                argi = -1;   // catch all for no valid integer
+                        }
+
+                        // check for options first
 			if (opt.equals("--die-on-broken-pipe")) {
 				dieOnBrokenPipe = true;
-			} else if (opt.equals("--enable-auth")) {
-				enableAuth = true;
+                                nextArgIsToken = false;
 			} else if (opt.equals("--bind-to-all")) {
 				bindToAll = true;
-			} else {
-				try {
-					port = Integer.parseInt(opt);
-				} catch (NumberFormatException e) {
-					System.err.println(usage);
-					System.exit(1);
-				}
-			}
+                                nextArgIsToken = false;
+			} else if (opt.equals("--enable-auth")) {
+				enableAuth = true;
+                                // ignore double opts like '--bind-to-all --bind-to-all'
+                                nextArgIsToken = true;
+
+                        // argument is no valid option, proceed
+                        } else if (nextArgIsToken && argi == -1) {
+                                System.out.println("Here");
+                                try {
+                                        authToken = String.valueOf(opt);
+                                        System.out.println(authToken);
+                                } catch (Exception e) {
+					authToken = null;
+                                }
+                                nextArgIsToken = false;
+			} else if (argi >= 0) {
+                                // valid integer is a port number (and should be last argument)
+			        port = Integer.parseInt(opt);
+                        } else {
+			        System.err.println(usage);
+			        System.exit(1);
+                        }
 		}
 
-		String authToken = null;
-		if (enableAuth) {
+		if (enableAuth && authToken == null) {
 			SecureRandom rnd = new SecureRandom();
 			byte[] token = new byte[256 / Byte.SIZE];
 			rnd.nextBytes(token);
 			authToken = Base64.encodeToString(token, false);
+                        /*  -- prepare for JWT support
+                        Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+                        authToken = Jwts.builder().setSubject("py4j").signWith(key).compact();
+                        */
 		}
 
 		GatewayServerBuilder gatewayServerBuilder = new GatewayServerBuilder().javaPort(port).authToken(authToken);
