@@ -114,6 +114,34 @@ public class Gateway {
 
 	/**
 	 * <p>
+	 * Replace the callback client with the new one which connects to the given address
+	 * and port. This method is useful if for some reason your CallbackServer changes its
+	 * address or you come to know of the address after Gateway has already instantiated.
+	 * </p>
+	 * <p>
+	 * This method <strong>is not thread-safe</strong>! Make sure that only
+	 * one thread calls this method.
+	 * </p>
+	 *
+	 * @param pythonAddress
+	 *            The address used by a PythonProxyHandler to connect to a
+	 *            Python gateway.
+	 * @param pythonPort
+	 *            The port used by a PythonProxyHandler to connect to a Python
+	 *            gateway. Essentially the port used for Python callbacks.
+	 * @param authToken
+         *            Token for authenticating with the callback server.
+	 */
+	public void resetCallbackClient(InetAddress pythonAddress, int pythonPort, String authToken) {
+		if (cbClient == null) {
+			throw new Py4JException("Callback Client is already null and cannot be reset");
+		}
+		cbClient.shutdown();
+		this.cbClient = cbClient.copyWith(pythonAddress, pythonPort, authToken);
+	}
+
+	/**
+	 * <p>
 	 * Called when a connection is closed.
 	 * </p>
 	 */

@@ -292,6 +292,30 @@ public class CallbackClient implements Py4JPythonClient {
 				socketFactory, enableMemoryManagement, readTimeout);
 	}
 
+	/**
+	 * <p>
+	 * Creates a callback client which connects to the given address and port,
+	 * but retains all the other settings (like the {@link #minConnectionTime}
+	 * and the {@link #socketFactory}. This method is useful if for some reason
+	 * your CallbackServer changes its address or you come to know of the
+	 * address after Gateway has already instantiated.
+	 * </p>
+	 *
+	 * @param pythonAddress
+	 *            The address used by a PythonProxyHandler to connect to a
+	 *            Python gateway.
+	 * @param pythonPort
+	 *            The port used by a PythonProxyHandler to connect to a Python
+	 *            gateway. Essentially the port used for Python callbacks.
+	 * @param authToken
+	 *            Token for authenticating with the callback server.
+	 */
+	@Override
+	public Py4JPythonClient copyWith(InetAddress pythonAddress, int pythonPort, String authToken) {
+		return new CallbackClient(pythonPort, pythonAddress, authToken, minConnectionTime, minConnectionTimeUnit,
+				socketFactory, enableMemoryManagement, readTimeout);
+	}
+
 	protected void giveBackConnection(Py4JClientConnection cc) {
 		try {
 			lock.lock();

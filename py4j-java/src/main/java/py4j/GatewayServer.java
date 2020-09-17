@@ -294,6 +294,40 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
 	}
 
 	/**
+	 * <p>
+	 * Replace the callback client with the new one which connects to the given address
+	 * and port. This method is useful if for some reason your CallbackServer changes its
+	 * address or you come to know of the address after Gateway has already instantiated.
+	 * </p>
+	 *
+	 * <p>
+	 * This method <strong>is not thread-safe</strong>! Make sure that only
+	 * one thread calls this method.
+	 * </p>
+	 *
+	 * @param pythonAddress
+	 *            The address used by a PythonProxyHandler to connect to a
+	 *            Python gateway encoded as a String
+	 * @param pythonPort
+	 *            The port used by a PythonProxyHandler to connect to a Python
+	 *            gateway. Essentially the port used for Python callbacks.
+	 */
+	public void resetCallbackClient(String pythonAddress, int pythonPort, String authToken) {
+                InetAddress address = null;
+                if (pythonAddress != null) {
+			try {
+				address = InetAddress.getByName(pythonAddress);
+			} catch (UnknownHostException e) {
+				throw new Py4JNetworkException(e);
+			}
+                }
+                else address = GatewayServer.defaultAddress();
+
+		gateway.resetCallbackClient(address, pythonPort, authToken);
+		this.pythonPort = pythonPort;
+		this.pythonAddress = address;
+	}
+	/**
 	 *
 	 * @param entryPoint
 	 *            The entry point of this Gateway. Can be null.
@@ -842,6 +876,9 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
                 boolean verbose = false;
 		boolean bindToAll = false;
 		String authToken = null;
+                Integer pythonPort = DEFAULT_PYTHON_PORT;
+                String sPythonAddress = DEFAULT_IPv6_ADDRESS;
+                InetAddress pythonAddress = null;
 
 		String usage = "usage: [--die-on-broken-pipe] [--debug] [--verbose] " + 
                         "[--enable-auth] [token] [--bind-to-all] [port]";
@@ -857,14 +894,14 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
                                 try { dieOnBrokenPipe = obj.getBoolean("dieOnBrokenPipe"); } catch (JSONException e) { }
                                 try { authToken = obj.getString("enableAuth"); } catch (JSONException e) { }
                                 try { bindToAll = obj.getBoolean("bindToAll"); } catch (JSONException e) { }
+                                try { pythonPort = obj.getInt("pythonPort"); } catch (JSONException e) { }
+                                try { sPythonAddress = obj.getString("pythonAddress"); } catch (JSONException e) { }
                                 try { debug = obj.getBoolean("debug"); } catch (JSONException e) { }
                                 try { verbose = obj.getBoolean("verbose"); } catch (JSONException e) { }
                         }
                         catch (NoSuchFileException e) {
-                                System.out.println("No such File " + e);
                         }
                         catch (Exception e) {
-                                System.out.println("Irgend so ein Murks " + e);
                         }
                 }
 
@@ -880,7 +917,6 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
                                 argi = -1;   // catch all for no valid integer
                         }
 
-                        System.out.println("Arg[" + i + "]: " + opt);
                         // check for options first
 			if (opt.equals("--die-on-broken-pipe")) {
 				dieOnBrokenPipe = true;
@@ -901,7 +937,6 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
                         } else if (nextArgIsToken && argi == -1) {
                                 try {
                                         authToken = String.valueOf(opt);
-                                        System.out.println(authToken);
                                 } catch (Exception e) {
 					authToken = null;
                                 }
@@ -927,6 +962,18 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
 		}
 
 		GatewayServerBuilder gatewayServerBuilder = new GatewayServerBuilder().javaPort(port).authToken(authToken);
+
+                if (sPythonAddress != null) {
+			try {
+				pythonAddress = InetAddress.getByName(sPythonAddress);
+			} catch (UnknownHostException e) {
+				throw new Py4JNetworkException(e);
+			}
+                }
+                else pythonAddress = GatewayServer.defaultAddress();
+                gatewayServerBuilder.callbackClient(pythonPort, pythonAddress);
+
+
 		if (bindToAll) {
 			InetAddress address;
 			try {
@@ -937,12 +984,14 @@ public class GatewayServer extends DefaultGatewayServerListener implements Py4JJ
 			gatewayServerBuilder.javaAddress(address);
 		}
 
+
 		GatewayServer gatewayServer = gatewayServerBuilder.build();
 
 		gatewayServer.start();
 		/* Print out the listening port so that clients can discover it. */
 		int listening_port = gatewayServer.getListeningPort();
-		System.out.println("" + listening_port + " on address " + gatewayServer.getAddress());
+		System.out.println("" + listening_port);
+                System.out.println(" on address " + gatewayServer.getAddress());
 
 		if (authToken != null) {
 			System.out.println(authToken);
